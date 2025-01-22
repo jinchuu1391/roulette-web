@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { v4 as uuidv4 } from 'uuid'
 
 type FormErros = {
   nickname?: string
@@ -21,7 +22,7 @@ function submit(e: Event) {
     return
   }
 
-  router.push({ name: 'room', params: { roomId: 1 } })
+  router.push({ name: 'room', params: { roomId: uuidv4() }, query: { nickname: nickname.value } })
 }
 
 function checkForm() {
