@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref, useTemplateRef } from 'vue'
+import io from 'socket.io-client'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+const socket = io('http://localhost:3000/chat')
+const nickname = route.query.nickname
+
 const canvasSize = 400
 const sections = 8
 const colors = [
@@ -20,6 +28,18 @@ const canvasRef = useTemplateRef('roulette')
 const spinning = ref(false)
 const currentAngle = ref(0)
 const speed = ref(0)
+
+const message = ref<string>('')
+const messages = ref<{ message: string; nickname?: string; isMe?: boolean }[]>([])
+
+socket.on('connect', () => {
+  console.log('connected')
+})
+
+socket.on('message', (message) => {
+  const [nickname, ...msg] = message.split(':')
+  messages.value.push({ nickname, message: msg.join('') })
+})
 
 function getRadian(degree: number) {
   return (degree * Math.PI) / 180
@@ -97,6 +117,11 @@ function slowDownSpin() {
   speed.value = Math.max(speed.value - 2, 0)
 }
 
+function sendMessage() {
+  socket.emit('message', { nickname, message: message.value })
+  messages.value.push({ isMe: true, message: message.value })
+}
+
 onMounted(() => {
   drawRoulette()
 })
@@ -112,4 +137,25 @@ onMounted(() => {
     <button @click="boostSpin">속도 증가</button>
     <button @click="slowDownSpin">속도 감소</button>
   </div>
+  <div>
+    <input v-model="message" placeholder="채팅" />
+    <button @click="sendMessage">보내기</button>
+  </div>
+  <ul>
+    <template v-for="msg in messages" :key="msg.message">
+      <li v-if="!msg.isMe">
+        <span>{{ msg.nickname }}</span> : {{ msg.message }}
+      </li>
+      <li v-if="msg.isMe" class="me">
+        {{ msg.message }}
+      </li>
+    </template>
+  </ul>
 </template>
+
+<style scoped>
+.me {
+  background-color: beige;
+  text-align: right;
+}
+</style>
