@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref, useTemplateRef } from 'vue'
+import { ref, useTemplateRef, watch } from 'vue'
 import io from 'socket.io-client'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
-const socket = io('http://localhost:3000/chat')
 const nickname = route.query.nickname
+const roomId = route.params.roomId
+
+const socket = io('http://localhost:3000/room')
 
 const canvasSize = 400
-const sections = 8
+
 const colors = [
   '#FF5733',
   '#33FF57',
@@ -20,7 +22,7 @@ const colors = [
   '#900C3F',
   '#581845',
 ]
-const friction = 0.987
+// const friction = 0.987
 const maxSpeed = 20
 
 const canvasRef = useTemplateRef('roulette')
@@ -30,10 +32,13 @@ const currentAngle = ref(0)
 const speed = ref(0)
 
 const message = ref<string>('')
-const messages = ref<{ message: string; nickname?: string; isMe?: boolean }[]>([])
+const messages = ref<{ message: string; nickname?: string; isMe?: boolean; isNotice?: boolean }[]>(
+  [],
+)
+const options = ref<string[]>([])
 
 socket.on('connect', () => {
-  console.log('connected')
+  socket.emit('joinRoom', { roomId, nickname })
 })
 
 socket.on('message', (message) => {
@@ -41,13 +46,30 @@ socket.on('message', (message) => {
   messages.value.push({ nickname, message: msg.join('') })
 })
 
+socket.on('notice', (message) => {
+  messages.value.push({ message, isNotice: true })
+})
+
+socket.on('options', (optionsFromServer) => {
+  options.value = optionsFromServer
+})
+
+socket.on('rouletteState', (roomState) => {
+  // console.log('rouletteState: ', roomState)
+  speed.value = roomState.speed
+  currentAngle.value = roomState.currentAngle
+  spinning.value = roomState.spinning
+  animateRoulette()
+})
+
 function getRadian(degree: number) {
   return (degree * Math.PI) / 180
 }
 
-function drawRoulette() {
+function drawRoulette(sections: string[]) {
   const canvas = canvasRef.value
-  if (!canvas) return
+  const sectionsLength = sections.length
+  if (!canvas || typeof sectionsLength !== 'number') return
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -55,9 +77,9 @@ function drawRoulette() {
   const centerX = canvasSize / 2
   const centerY = canvasSize / 2
   const radius = canvasSize / 2 - 10
-  const sliceAngle = (2 * Math.PI) / sections
+  const sliceAngle = (2 * Math.PI) / sectionsLength
 
-  for (let i = 0; i < sections; i++) {
+  for (let i = 0; i < sectionsLength; i++) {
     const startAngle = i * sliceAngle + getRadian(currentAngle.value)
     const endAngle = (i + 1) * sliceAngle + getRadian(currentAngle.value)
 
@@ -78,7 +100,7 @@ function drawRoulette() {
     ctx.textAlign = 'center'
     ctx.fillStyle = '#000'
     ctx.font = '16px Arial'
-    ctx.fillText(`${i}`, 0, 0)
+    ctx.fillText(`${sections[i]}`, 0, 0)
     ctx.restore()
   }
 }
@@ -86,25 +108,26 @@ function drawRoulette() {
 function animateRoulette() {
   if (!spinning.value) return
 
-  speed.value *= friction
-  if (speed.value < 0.1) {
-    spinning.value = false
-    speed.value = 0
-    return
-  }
+  // speed.value *= friction
+  // if (speed.value < 0.1) {
+  //   spinning.value = false
+  //   speed.value = 0
+  //   return
+  // }
 
-  currentAngle.value = (currentAngle.value + speed.value) % 360
+  // currentAngle.value = (currentAngle.value + speed.value) % 360
 
-  drawRoulette()
+  drawRoulette(options.value)
 
   requestAnimationFrame(animateRoulette)
 }
 
 function spinRoulette() {
   if (spinning.value) return
-  spinning.value = true
-  speed.value = Math.max(speed.value, 50)
-  animateRoulette()
+  // spinning.value = true
+  // speed.value = Math.max(speed.value, 50)
+  // animateRoulette()
+  socket.emit('spinRoulette', { roomId })
 }
 
 function boostSpin() {
@@ -117,13 +140,14 @@ function slowDownSpin() {
   speed.value = Math.max(speed.value - 2, 0)
 }
 
-function sendMessage() {
-  socket.emit('message', { nickname, message: message.value })
+function handleChat() {
+  socket.emit('message', { nickname, message: message.value, roomId })
   messages.value.push({ isMe: true, message: message.value })
+  message.value = ''
 }
 
-onMounted(() => {
-  drawRoulette()
+watch(options, () => {
+  drawRoulette(options.value)
 })
 </script>
 
@@ -139,15 +163,19 @@ onMounted(() => {
   </div>
   <div>
     <input v-model="message" placeholder="채팅" />
-    <button @click="sendMessage">보내기</button>
+    <button @click="handleChat">보내기</button>
   </div>
+  {{ options }}
   <ul>
     <template v-for="msg in messages" :key="msg.message">
-      <li v-if="!msg.isMe">
-        <span>{{ msg.nickname }}</span> : {{ msg.message }}
-      </li>
       <li v-if="msg.isMe" class="me">
         {{ msg.message }}
+      </li>
+      <li v-else-if="msg.isNotice" class="notice">
+        {{ msg.message }}
+      </li>
+      <li v-else>
+        <span>{{ msg.nickname }}</span> : {{ msg.message }}
       </li>
     </template>
   </ul>
@@ -157,5 +185,8 @@ onMounted(() => {
 .me {
   background-color: beige;
   text-align: right;
+}
+.notice {
+  color: blue;
 }
 </style>

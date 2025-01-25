@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { v4 as uuidv4 } from 'uuid'
+import io from 'socket.io-client'
 
 type FormErros = {
   nickname?: string
@@ -15,6 +16,8 @@ const optionCandidate = ref('')
 const options = ref<string[]>([])
 const formErrors = ref<FormErros>(null)
 
+const roomSocket = io('http://localhost:3000/room')
+
 function submit(e: Event) {
   e.preventDefault()
 
@@ -22,7 +25,9 @@ function submit(e: Event) {
     return
   }
 
-  router.push({ name: 'room', params: { roomId: uuidv4() }, query: { nickname: nickname.value } })
+  const roomId = uuidv4()
+  roomSocket.emit('createRoom', { roomId, leader: nickname.value, options: options.value })
+  router.push({ name: 'room', params: { roomId }, query: { nickname: nickname.value } })
 }
 
 function checkForm() {
