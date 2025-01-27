@@ -22,8 +22,6 @@ const colors = [
   '#900C3F',
   '#581845',
 ]
-// const friction = 0.987
-const maxSpeed = 20
 
 const canvasRef = useTemplateRef('roulette')
 
@@ -54,12 +52,22 @@ socket.on('options', (optionsFromServer) => {
   options.value = optionsFromServer
 })
 
+socket.on('error', (errorMessage) => {
+  alert(errorMessage)
+})
+
 socket.on('rouletteState', (roomState) => {
-  // console.log('rouletteState: ', roomState)
   speed.value = roomState.speed
   currentAngle.value = roomState.currentAngle
   spinning.value = roomState.spinning
-  animateRoulette()
+
+  if (!spinning.value) return
+
+  requestAnimationFrame(() => drawRoulette(options.value))
+})
+
+socket.on('speedChange', (speed) => {
+  speed.value = speed
 })
 
 function getRadian(degree: number) {
@@ -105,39 +113,17 @@ function drawRoulette(sections: string[]) {
   }
 }
 
-function animateRoulette() {
-  if (!spinning.value) return
-
-  // speed.value *= friction
-  // if (speed.value < 0.1) {
-  //   spinning.value = false
-  //   speed.value = 0
-  //   return
-  // }
-
-  // currentAngle.value = (currentAngle.value + speed.value) % 360
-
-  drawRoulette(options.value)
-
-  requestAnimationFrame(animateRoulette)
-}
-
 function spinRoulette() {
   if (spinning.value) return
-  // spinning.value = true
-  // speed.value = Math.max(speed.value, 50)
-  // animateRoulette()
   socket.emit('spinRoulette', { roomId })
 }
 
 function boostSpin() {
-  if (!spinning.value) return
-  speed.value = Math.min(speed.value + 5, maxSpeed)
+  socket.emit('speedUp', { roomId })
 }
 
 function slowDownSpin() {
-  if (!spinning.value) return
-  speed.value = Math.max(speed.value - 2, 0)
+  socket.emit('speedDown', { roomId })
 }
 
 function handleChat() {
@@ -157,9 +143,9 @@ watch(options, () => {
     <canvas ref="roulette" :width="canvasSize" :height="canvasSize"></canvas>
   </div>
   <div>
-    <button @click="spinRoulette">돌리기</button>
-    <button @click="boostSpin">속도 증가</button>
-    <button @click="slowDownSpin">속도 감소</button>
+    <button :disabled="spinning" @click="spinRoulette">돌리기</button>
+    <button :disabled="!spinning" @click="boostSpin">속도 증가</button>
+    <button :disabled="!spinning" @click="slowDownSpin">속도 감소</button>
   </div>
   <div>
     <input v-model="message" placeholder="채팅" />
@@ -188,5 +174,8 @@ watch(options, () => {
 }
 .notice {
   color: blue;
+}
+button:disabled {
+  background-color: grey;
 }
 </style>
