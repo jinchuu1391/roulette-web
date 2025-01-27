@@ -27,7 +27,13 @@ function submit(e: Event) {
 
   const roomId = uuidv4()
   roomSocket.emit('createRoom', { roomId, leader: nickname.value, options: options.value })
-  router.push({ name: 'room', params: { roomId }, query: { nickname: nickname.value } })
+
+  sessionStorage.setItem('nickname', nickname.value)
+
+  router.push({
+    name: 'room',
+    params: { roomId },
+  })
 }
 
 function checkForm() {

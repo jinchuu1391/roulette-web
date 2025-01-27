@@ -13,8 +13,8 @@ const router = createRouter({
       path: '/room/:roomId',
       name: 'room',
       beforeEnter: (to, from, next) => {
-        if (!to.query.nickname) {
-          next({ path: '/' })
+        if (!sessionStorage.getItem('nickname')) {
+          next({ name: 'nickname', params: { roomId: to.params.roomId } })
         } else {
           next()
         }
@@ -23,6 +23,11 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/RoomView.vue'),
+    },
+    {
+      path: '/nickname/:roomId',
+      name: 'nickname',
+      component: () => import('../views/NicknameView.vue'),
     },
   ],
 })

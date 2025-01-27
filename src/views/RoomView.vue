@@ -5,7 +5,6 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
-const nickname = route.query.nickname
 const roomId = route.params.roomId
 
 const socket = io('http://localhost:3000/room')
@@ -25,6 +24,7 @@ const colors = [
 
 const canvasRef = useTemplateRef('roulette')
 
+const nickname = ref(sessionStorage.getItem('nickname') || '')
 const spinning = ref(false)
 const currentAngle = ref(0)
 const speed = ref(0)
@@ -36,12 +36,12 @@ const messages = ref<{ message: string; nickname?: string; isMe?: boolean; isNot
 const options = ref<string[]>([])
 
 socket.on('connect', () => {
-  socket.emit('joinRoom', { roomId, nickname })
+  socket.emit('joinRoom', { roomId, nickname: nickname.value })
 })
 
 socket.on('message', (message) => {
   const [nickname, ...msg] = message.split(':')
-  messages.value.push({ nickname, message: msg.join('') })
+  messages.value.push({ nickname: nickname.value, message: msg.join('') })
 })
 
 socket.on('notice', (message) => {
@@ -127,7 +127,7 @@ function slowDownSpin() {
 }
 
 function handleChat() {
-  socket.emit('message', { nickname, message: message.value, roomId })
+  socket.emit('message', { nickname: nickname.value, message: message.value, roomId })
   messages.value.push({ isMe: true, message: message.value })
   message.value = ''
 }
