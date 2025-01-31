@@ -47,7 +47,7 @@ function checkForm() {
   }
 
   const isOptionsValid = options.value.length >= 2
-  if (isOptionsValid) {
+  if (!isOptionsValid) {
     newFormErros.options = '2개 이상의 옵션을 등록해주세요'
   }
 
@@ -77,8 +77,8 @@ function addOption() {
   </div>
   <p v-if="formErrors?.nickname">{{ formErrors.nickname }}</p>
   <div>
-    <label>옵션</label>
-    <input v-model="optionCandidate" @keyup.enter="addOption" />
+    <label for="option">옵션</label>
+    <input id="option" v-model="optionCandidate" @keyup.enter="addOption" />
     <button @click="addOption">추가</button>
   </div>
   <ul>
