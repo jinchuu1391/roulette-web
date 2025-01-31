@@ -20,15 +20,15 @@ const roomSocket = io('http://localhost:3000/room')
 
 function submit(e: Event) {
   e.preventDefault()
-
-  if (!checkForm()) {
+  if (!validateForm()) {
     return
   }
 
-  const roomId = uuidv4()
-  roomSocket.emit('createRoom', { roomId, leader: nickname.value, options: options.value })
-
   sessionStorage.setItem('nickname', nickname.value)
+
+  const roomId = uuidv4()
+
+  createRoomOnServer(roomId)
 
   router.push({
     name: 'room',
@@ -36,7 +36,11 @@ function submit(e: Event) {
   })
 }
 
-function checkForm() {
+function createRoomOnServer(roomId: string) {
+  roomSocket.emit('createRoom', { roomId, leader: nickname.value, options: options.value })
+}
+
+function validateForm() {
   formErrors.value = null
 
   const newFormErros: FormErros = {}
